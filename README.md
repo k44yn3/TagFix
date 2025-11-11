@@ -8,12 +8,35 @@ Supports **FLAC, MP3, M4A, OGG, OPUS, WMA, and WAV** formats using the **Mutagen
 ## Requirements
 
 - Python 3.8 or later  
-- Mutagen library  
+- Mutagen library
 
-Install dependencies:
+If you prefer installing `mutagen` via your system's package manager instead of `pip`, use the appropriate command below:
+
+- **Fedora**:
+  ```bash
+  sudo dnf install python-mutagen
+  ```
+
+- **Arch Linux / Manjaro**:
+  ```bash
+  sudo pacman -S python-mutagen
+  ```
+
+- **Debian / Ubuntu**:
+  ```bash
+  sudo apt install python3-mutagen
+  ```
+
+- **macOS (Homebrew)**:
+  ```bash
+  brew install mutagen
+  ```
+
+Alternatively, you can install it via `pip`:
 ```bash
 pip install mutagen
 ```
+
 
 ---
 
