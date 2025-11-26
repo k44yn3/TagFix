@@ -1,0 +1,38 @@
+name: tagfix
+description: A new Flutter project.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  audiotags: ^1.4.5
+  file_picker: ^8.1.6
+  provider: ^6.1.2
+  window_manager: ^0.3.8
+  path: ^1.9.0
+  path_provider: ^2.1.5
+  http: ^1.2.0
+  google_fonts: ^6.2.1
+  desktop_drop: ^0.4.4
+  cupertino_icons: ^1.0.6
+  image: ^4.5.4
+  dynamic_color: 1.6.9
+  animations: ^2.0.11
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - scripts/romanize.py
+    - assets/ffmpeg/linux/
+    - assets/ffmpeg/windows/
+    - assets/ffmpeg/macos/
