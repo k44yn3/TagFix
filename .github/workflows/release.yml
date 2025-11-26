@@ -30,6 +30,12 @@ jobs:
           chmod +x ../.github/workflows/download_ffmpeg.sh
           ../.github/workflows/download_ffmpeg.sh
 
+      - name: Sync Version
+        working-directory: flutter_app
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          sed -i "s/^version: .*/version: $VERSION/" pubspec.yaml
+
       - name: Get Flutter dependencies
         working-directory: flutter_app
         run: flutter pub get
@@ -89,6 +95,13 @@ jobs:
         working-directory: flutter_app
         run: bash ../.github/workflows/download_ffmpeg.sh
 
+      - name: Sync Version
+        working-directory: flutter_app
+        run: |
+          $VERSION = $env:GITHUB_REF -replace 'refs/tags/v', ''
+          echo "VERSION=$VERSION" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          (Get-Content pubspec.yaml) -replace '^version: .*', "version: $VERSION" | Set-Content pubspec.yaml
+
       - name: Get Flutter dependencies
         working-directory: flutter_app
         run: flutter pub get
@@ -104,11 +117,20 @@ jobs:
         working-directory: flutter_app
         run: flutter build windows --release
 
+      - name: Install Inno Setup
+        run: choco install innosetup
+
+      - name: Create Installer Directory
+        run: mkdir flutter_app/windows/installer -ErrorAction SilentlyContinue
+
+      - name: Compile Installer
+        run: iscc /DMyAppVersion="$env:VERSION" flutter_app/windows/installer/setup.iss
+
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: tagfix-windows
-          path: flutter_app/build/windows/x64/runner/release
+          path: flutter_app/windows/installer/Output/TagFix_Setup_*.exe
 
   release:
     name: Create Release
