@@ -65,6 +65,7 @@ jobs:
           convert AppDir/icon.png -resize 512x512! AppDir/icon.png
           
           ./linuxdeploy-x86_64.AppImage --appdir AppDir --output appimage --desktop-file AppDir/*.desktop --icon-file AppDir/*.png --executable AppDir/usr/bin/$EXECUTABLE_NAME $EXTRA_ARGS
+          rm linuxdeploy-x86_64.AppImage
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
