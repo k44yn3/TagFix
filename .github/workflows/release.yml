@@ -22,7 +22,7 @@ jobs:
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev
+          sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libfuse2
 
       - name: Download FFmpeg binaries
         run: |
@@ -37,11 +37,30 @@ jobs:
         working-directory: flutter_app
         run: flutter build linux --release
 
-      - name: Package Linux build
+      - name: Create AppImage
         working-directory: flutter_app
         run: |
-          cd build/linux/x64/release/bundle
-          zip -r ../../../../../tagfix-linux.zip .
+          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+          mkdir -p AppDir/usr/bin
+          cp -r build/linux/x64/release/bundle/* AppDir/usr/bin/
+          EXECUTABLE_NAME=$(find build/linux/x64/release/bundle -maxdepth 1 -type f -executable ! -name "*.so" -printf "%f\n" | head -n 1)
+          if [ -f linux/*.desktop ]; then
+            cp linux/*.desktop AppDir/
+          else
+             echo "[Desktop Entry]" > AppDir/$EXECUTABLE_NAME.desktop
+             echo "Type=Application" >> AppDir/$EXECUTABLE_NAME.desktop
+             echo "Name=TagFix" >> AppDir/$EXECUTABLE_NAME.desktop
+             echo "Exec=$EXECUTABLE_NAME" >> AppDir/$EXECUTABLE_NAME.desktop
+             echo "Icon=icon" >> AppDir/$EXECUTABLE_NAME.desktop
+             echo "Categories=Utility;" >> AppDir/$EXECUTABLE_NAME.desktop
+          fi
+          touch AppDir/icon.png
+          ./linuxdeploy-x86_64.AppImage --appdir AppDir --output appimage --desktop-file AppDir/*.desktop --icon-file AppDir/*.png --executable AppDir/usr/bin/$EXECUTABLE_NAME
+
+      - name: Package Linux AppImage into Zip
+        working-directory: flutter_app
+        run: zip -j tagfix-linux.zip *.AppImage
 
       - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
@@ -63,8 +82,7 @@ jobs:
 
       - name: Download FFmpeg binaries
         working-directory: flutter_app
-        run: |
-          bash download_ffmpeg.sh
+        run: bash download_ffmpeg.sh
 
       - name: Get Flutter dependencies
         working-directory: flutter_app
@@ -76,15 +94,13 @@ jobs:
 
       - name: Package Windows build
         working-directory: flutter_app
-        run: |
-          Compress-Archive -Path build\windows\x64\runner\release\* -DestinationPath tagfix-windows.zip
+        run: Compress-Archive -Path build\windows\x64\runner\release\* -DestinationPath tagfix-windows.zip
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: tagfix-windows
           path: flutter_app/tagfix-windows.zip
-
 
   release:
     name: Create Release
