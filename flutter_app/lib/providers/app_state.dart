@@ -151,7 +151,9 @@ class AppState extends ChangeNotifier {
         album: (_batchDirtyFields.contains('album') && templateTags?.album != null)
             ? templateTags!.album
             : currentTags?.album,
-        albumArtist: currentTags?.albumArtist, // Not in batch UI
+        albumArtist: (_batchDirtyFields.contains('albumArtist') && templateTags?.albumArtist != null)
+            ? templateTags!.albumArtist
+            : currentTags?.albumArtist,
         genre: (_batchDirtyFields.contains('genre') && templateTags?.genre != null)
             ? templateTags!.genre
             : currentTags?.genre,
@@ -504,6 +506,7 @@ class AppState extends ChangeNotifier {
     String? title,
     String? artist,
     String? album,
+    String? albumArtist,
     String? year,
     String? genre,
     String? trackNumber,
@@ -515,7 +518,7 @@ class AppState extends ChangeNotifier {
       title: title ?? file.tags?.title,
       trackArtist: artist ?? file.tags?.trackArtist,
       album: album ?? file.tags?.album,
-      albumArtist: file.tags?.albumArtist,
+      albumArtist: albumArtist ?? file.tags?.albumArtist,
       year: year != null ? int.tryParse(year) : file.tags?.year,
       genre: genre ?? file.tags?.genre,
       trackNumber: trackNumber != null ? int.tryParse(trackNumber) : file.tags?.trackNumber,
@@ -746,6 +749,7 @@ class AppState extends ChangeNotifier {
   void updateBatchTemplate({
     String? artist,
     String? album,
+    String? albumArtist,
     String? year,
     String? genre,
   }) {
@@ -756,7 +760,7 @@ class AppState extends ChangeNotifier {
       title: currentTags?.title,
       trackArtist: artist ?? currentTags?.trackArtist,
       album: album ?? currentTags?.album,
-      albumArtist: currentTags?.albumArtist,
+      albumArtist: albumArtist ?? currentTags?.albumArtist,
       genre: genre ?? currentTags?.genre,
       year: year != null ? int.tryParse(year) : currentTags?.year,
       trackNumber: currentTags?.trackNumber,
@@ -771,6 +775,7 @@ class AppState extends ChangeNotifier {
     
     if (artist != null) _batchDirtyFields.add('artist');
     if (album != null) _batchDirtyFields.add('album');
+    if (albumArtist != null) _batchDirtyFields.add('albumArtist');
     if (year != null) _batchDirtyFields.add('year');
     if (genre != null) _batchDirtyFields.add('genre');
     
