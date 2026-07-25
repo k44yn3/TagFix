@@ -77,6 +77,8 @@ class BatchStatusDialog(QDialog):
         layout.addLayout(footer)
         
         self.results = [] 
+        self._item_map = {}  # filepath -> QTreeWidgetItem
+        self._result_map = {}  # filepath -> index in self.results
 
     def update_progress(self, current, total):
         self.progress_bar.setRange(0, total)
@@ -90,20 +92,14 @@ class BatchStatusDialog(QDialog):
     def add_result(self, filepath, status, details):
         filename = os.path.basename(filepath)
         
-        existing_item = None
-        for i in range(self.tree.topLevelItemCount()):
-            item = self.tree.topLevelItem(i)
-            if item.text(0) == filename:
-                existing_item = item
-                break
-        
-        if existing_item:
-            existing_item.setText(1, status)
-            existing_item.setText(2, details)
-            item = existing_item
+        item = self._item_map.get(filepath)
+        if item:
+            item.setText(1, status)
+            item.setText(2, details)
         else:
             item = QTreeWidgetItem([filename, status, details])
             self.tree.addTopLevelItem(item)
+            self._item_map[filepath] = item
         
         if status == "Success" or status == "Found" or status == "Updated":
             item.setForeground(1, QColor(Theme.SUCCESS))
@@ -114,14 +110,17 @@ class BatchStatusDialog(QDialog):
         else:
             item.setForeground(1, QColor(Theme.SUBTEXT0))
         
-        for i, r in enumerate(self.results):
-            if r['file'] == filepath:
-                self.results[i] = {'file': filepath, 'status': status, 'details': details}
-                return
-        self.results.append({'file': filepath, 'status': status, 'details': details})
+        if filepath in self._result_map:
+            idx = self._result_map[filepath]
+            self.results[idx] = {'file': filepath, 'status': status, 'details': details}
+        else:
+            self._result_map[filepath] = len(self.results)
+            self.results.append({'file': filepath, 'status': status, 'details': details})
 
     def clear(self):
         self.tree.clear()
         self.results = []
+        self._item_map = {}
+        self._result_map = {}
         self.progress_bar.setValue(0)
         self.status_label.setText("Ready")

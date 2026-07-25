@@ -26,6 +26,22 @@ class ImageLoaderWorker(QObject):
             self.finished.emit(b"")
 
 
+class SearchWorker(QObject):
+    finished = Signal(list)
+    error = Signal(str)
+    
+    def __init__(self, callback, args):
+        super().__init__()
+        self.callback = callback
+        self.args = args
+    
+    def run(self):
+        try:
+            results = self.callback(*self.args)
+            self.finished.emit(results or [])
+        except Exception as e:
+            self.error.emit(str(e))
+
 class UnifiedSearchDialog(QDialog):
     def __init__(self, parent=None, mode="lyrics", initial_artist="", initial_title="", initial_album="", fetcher_callback=None):
         super().__init__(parent)
@@ -39,6 +55,7 @@ class UnifiedSearchDialog(QDialog):
         self.fetcher_callback = fetcher_callback
         self.selected_result = None
         self._loader_thread = None
+        self._search_thread = None
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
@@ -148,28 +165,49 @@ class UnifiedSearchDialog(QDialog):
             self.preview_image.clear()
             self.preview_image.setText("Pick a cover to preview it")
         
-        self.search_btn.setText("Searching…")
+        self.search_btn.setText("Searching...")
         self.search_btn.setEnabled(False)
-        self.repaint()
         
-        try:
-            results = []
-            if self.fetcher_callback:
-                if self.mode == "lyrics":
-                    results = self.fetcher_callback(artist, title, album)
-                else:
-                    results = self.fetcher_callback(artist, album)
-            
-            if not results:
-                dialogs.show_info(self, "No Results", "No matches found.")
-            else:
-                self.populate_results(results)
-                
-        except Exception as e:
-            dialogs.show_error(self, "Search Failed", f"Couldn't get results. {e}")
-        finally:
-            self.search_btn.setText("Search")
-            self.search_btn.setEnabled(True)
+        # Clean up previous search thread
+        if self._search_thread and self._search_thread.isRunning():
+            self._search_thread.quit()
+            self._search_thread.wait(2000)
+        
+        if self.mode == "lyrics":
+            args = (artist, title, album)
+        else:
+            args = (artist, album)
+        
+        self._search_thread = QThread()
+        self._search_worker = SearchWorker(self.fetcher_callback, args)
+        self._search_worker.moveToThread(self._search_thread)
+        self._search_thread.started.connect(self._search_worker.run)
+        self._search_worker.finished.connect(self._on_search_done)
+        self._search_worker.error.connect(self._on_search_error)
+        self._search_worker.finished.connect(self._search_thread.quit)
+        self._search_worker.finished.connect(self._search_worker.deleteLater)
+        self._search_worker.error.connect(self._search_thread.quit)
+        self._search_worker.error.connect(self._search_worker.deleteLater)
+        self._search_thread.finished.connect(self._search_thread.deleteLater)
+        self._search_thread.finished.connect(self._on_search_thread_done)
+        self._search_thread.start()
+
+    def _on_search_done(self, results):
+        self.search_btn.setText("Search")
+        self.search_btn.setEnabled(True)
+        if not results:
+            dialogs.show_info(self, "No Results", "No matches found.")
+        else:
+            self.populate_results(results)
+
+    def _on_search_error(self, error_msg):
+        self.search_btn.setText("Search")
+        self.search_btn.setEnabled(True)
+        dialogs.show_error(self, "Search Failed", f"Couldn't get results. {error_msg}")
+
+    def _on_search_thread_done(self):
+        self._search_thread = None
+        self._search_worker = None
 
     def populate_results(self, results):
         for res in results:
@@ -263,8 +301,10 @@ class UnifiedSearchDialog(QDialog):
             self.accept()
 
     def closeEvent(self, event):
-        """Clean up preview loader thread on dialog close."""
+        """Clean up threads on dialog close."""
         self._cleanup_loader()
+        if self._search_thread and self._search_thread.isRunning():
+            self._search_thread.quit()
+            self._search_thread.wait(2000)
         event.accept()
         super().closeEvent(event)
-

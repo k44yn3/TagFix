@@ -252,18 +252,13 @@ class FileList(QTreeWidget):
 
     @staticmethod
     def _calc_missing(meta):
-        """Return count of missing critical fields (title, artist, album, cover)."""
+        """Return count of missing critical fields (title, artist, album)."""
         count = 0
         if not meta.title:
             count += 1
         if not meta.artist:
             count += 1
         if not meta.album:
-            count += 1
-        try:
-            if not meta.get_cover():
-                count += 1
-        except Exception:
             count += 1
         return count
 
