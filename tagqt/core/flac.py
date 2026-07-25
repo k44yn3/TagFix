@@ -6,8 +6,11 @@ import tempfile
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QMetaObject, Qt, Q_ARG
 from tagqt.core.tags import MetadataHandler
+from tagqt.core.dap import optimize_art_for_dap
 import logging
+
 logger = logging.getLogger(__name__)
+
 
 def _get_all_encoders() -> list[tuple[str, str]]:
     """
@@ -21,12 +24,12 @@ def _get_all_encoders() -> list[tuple[str, str]]:
     """
     encoders = []
 
-    # 1. System ffmpeg — preferred, full 48kHz/32-bit conversion
+    # 1. System ffmpeg — preferred, full 48kHz/32-bit conversion with DAP-safe 4096 block size
     system_ffmpeg = shutil.which("ffmpeg")
     if system_ffmpeg:
         encoders.append((system_ffmpeg, "ffmpeg"))
 
-    # 2. System flac — re-compression only
+    # 2. System flac — re-compression only with 4096 block size
     system_flac = shutil.which("flac")
     if system_flac:
         encoders.append((system_flac, "flac"))
@@ -36,7 +39,6 @@ def _get_all_encoders() -> list[tuple[str, str]]:
         name = "flac.exe" if sys.platform == "win32" else "flac"
         bundled = os.path.join(sys._MEIPASS, name)
         if os.path.isfile(bundled):
-            # Only add if not already added as system flac
             if not system_flac or bundled != system_flac:
                 encoders.append((bundled, "flac"))
 
@@ -46,9 +48,10 @@ def _get_all_encoders() -> list[tuple[str, str]]:
 def _build_cmd(binary, mode, filepath, temp_path):
     """Build the subprocess command for the given encoder mode."""
     if mode == "flac":
-        # Xiph flac native CLI — re-compression only, preserves source format
+        # Xiph flac native CLI — re-compression with 4096 block size for DAP compatibility
         return [
             binary,
+            "-b", "4096",
             "--best",
             "--force",
             "--silent",
@@ -56,11 +59,12 @@ def _build_cmd(binary, mode, filepath, temp_path):
             filepath
         ]
     elif mode == "ffmpeg":
-        # ffmpeg — full conversion to 24-bit 48kHz
+        # ffmpeg — full conversion to 24-bit 48kHz with 4096 frame/block size for DAP compatibility
         return [
             binary, '-y', '-i', filepath,
             '-map_metadata', '0',
             '-c:a', 'flac',
+            '-frame_size', '4096',
             '-compression_level', '5',
             '-sample_fmt', 's32',
             '-ar', '48000',
@@ -70,7 +74,7 @@ def _build_cmd(binary, mode, filepath, temp_path):
 
 
 class FlacEncoder:
-    """Handles FLAC re-encoding to 24-bit 48kHz using ffmpeg or flac."""
+    """Handles FLAC re-encoding to 24-bit 48kHz and DAP hardware compatibility."""
 
     @staticmethod
     def is_flac_available():
@@ -89,7 +93,7 @@ class FlacEncoder:
         return None
 
     @staticmethod
-    def reencode_flac(filepath):
+    def reencode_flac(filepath, fix_dap_art=True):
         if not filepath.lower().endswith('.flac'):
             return False, "Not a FLAC file"
 
@@ -107,18 +111,26 @@ class FlacEncoder:
                     tags_to_preserve[attr] = val
 
             cover_data = original_meta.get_cover()
+            if cover_data and fix_dap_art:
+                # Optimize cover art to baseline JPEG <= 1000x1000 for DAP hardware compatibility
+                opt_art = optimize_art_for_dap(cover_data)
+                if opt_art:
+                    cover_data = opt_art
 
         except Exception as e:
-            logger.warning(f"Warning: Could not read original metadata: {e}")
+            logger.warning("Could not read original metadata: %s", e)
 
         temp_fd, temp_path = tempfile.mkstemp(suffix='.flac')
         os.close(temp_fd)
-        os.remove(temp_path)
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
 
         encoders = _get_all_encoders()
 
         if not encoders:
-            # No encoder available at all — show toast and return
             try:
                 win = QApplication.activeWindow()
                 if win and hasattr(win, 'show_toast'):
@@ -132,7 +144,6 @@ class FlacEncoder:
         last_error = None
 
         for binary, mode in encoders:
-            # Clean up any leftover temp file from a previous failed attempt
             if os.path.exists(temp_path):
                 try:
                     os.remove(temp_path)
@@ -144,7 +155,7 @@ class FlacEncoder:
                 if cmd is None:
                     continue
 
-                logger.info(f"Trying encoder: {binary} (mode={mode})")
+                logger.info("Trying encoder: %s (mode=%s)", binary, mode)
 
                 result = subprocess.run(
                     cmd,
@@ -152,7 +163,7 @@ class FlacEncoder:
                     check=True
                 )
 
-                # Encoding succeeded — restore metadata
+                # Encoding succeeded — restore metadata and optimized cover
                 try:
                     new_meta = MetadataHandler(temp_path)
 
@@ -165,25 +176,22 @@ class FlacEncoder:
                     new_meta.save()
 
                 except Exception as e:
-                    logger.warning(f"Warning: Could not restore metadata: {e}")
+                    logger.warning("Could not restore metadata: %s", e)
 
                 shutil.move(temp_path, filepath)
                 return True, None
 
             except subprocess.CalledProcessError as e:
                 error_msg = e.stderr.decode() if e.stderr else str(e)
-                logger.error(f"Encoder {binary} failed: {error_msg}")
+                logger.error("Encoder %s failed: %s", binary, error_msg)
                 last_error = f"Encoding failed: {error_msg}"
-                # Continue to next encoder
                 continue
 
             except Exception as e:
-                logger.error(f"Encoder {binary} error: {e}")
+                logger.error("Encoder %s error: %s", binary, e)
                 last_error = str(e)
-                # Continue to next encoder
                 continue
 
-        # All encoders failed
         if os.path.exists(temp_path):
             try:
                 os.remove(temp_path)

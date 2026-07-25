@@ -3,6 +3,7 @@ from tagqt.core.tags import MetadataHandler
 from tagqt.core.musicbrainz import MusicBrainzClient
 from tagqt.core.case import CaseConverter
 from tagqt.core.flac import FlacEncoder
+from tagqt.core.dap import check_dap_compatibility, optimize_art_for_dap
 import os
 import re
 import time
@@ -618,15 +619,32 @@ class FlacReencodeWorker(QObject):
         try:
             total = len(self.files)
             for i, f in enumerate(self.files):
-                if self._stop_event.is_set(): break
+                if self._stop_event.is_set():
+                    break
                 self.progress.emit(i, total)
-                
-                success, error = FlacEncoder.reencode_flac(f)
-                if success:
-                    self.result.emit(f, "Success", "Re-encoded to 24-bit 48kHz")
-                else:
-                    self.result.emit(f, "Error", error)
-                    
+                ext = os.path.splitext(f)[1].lower()
+                try:
+                    if ext == '.flac':
+                        success, error = FlacEncoder.reencode_flac(f, fix_dap_art=True)
+                        if success:
+                            self.result.emit(f, "Success", "Re-encoded to 24-bit 48kHz (4096 block size & baseline JPEG art)")
+                        else:
+                            self.result.emit(f, "Error", error or "Re-encode failed")
+                    else:
+                        meta = MetadataHandler(f)
+                        cover_data = meta.get_cover()
+                        if cover_data:
+                            opt_art = optimize_art_for_dap(cover_data)
+                            if opt_art:
+                                meta.set_cover(opt_art)
+                                meta.save()
+                                self.result.emit(f, "Success", "Fixed album art (baseline JPEG <= 1000x1000)")
+                            else:
+                                self.result.emit(f, "Skipped", "Album art already optimized")
+                        else:
+                            self.result.emit(f, "Skipped", "No embedded album art to optimize")
+                except Exception as e:
+                    self.result.emit(f, "Error", str(e))
             self.progress.emit(total, total)
         finally:
             self.finished.emit()
@@ -781,3 +799,36 @@ class UndoBatchWorker(QObject):
                 self.progress.emit(i + 1, total)
         finally:
             self.finished.emit()
+
+
+class DapCheckWorker(QObject):
+    progress = Signal(int, int)
+    result = Signal(str, str, str)
+    finished = Signal()
+
+    def __init__(self, filepaths):
+        super().__init__()
+        self.filepaths = filepaths
+        self._stop_event = threading.Event()
+
+    def stop(self):
+        self._stop_event.set()
+
+    def run(self):
+        total = len(self.filepaths)
+        try:
+            for idx, fp in enumerate(self.filepaths, start=1):
+                if self._stop_event.is_set():
+                    break
+                self.progress.emit(idx, total)
+                try:
+                    info = check_dap_compatibility(fp)
+                    status = info['status']
+                    reasons = "; ".join(info['reasons'])
+                    self.result.emit(fp, status, reasons)
+                except Exception as e:
+                    self.result.emit(fp, "Error", f"Check failed: {e}")
+            self.progress.emit(total, total)
+        finally:
+            self.finished.emit()
+

@@ -17,7 +17,8 @@ from tagqt.ui.workers import (
     LyricsWorker, AutoTagWorker, FolderLoaderWorker, RenameWorker,
     CoverFetchWorker, CoverResizeWorker, RomanizeWorker, CaseConvertWorker,
     FlacReencodeWorker, CsvImportWorker, SaveWorker, DuplicateScanWorker,
-    BpmDetectWorker, UndoBatchWorker, LIBROSA_AVAILABLE
+    BpmDetectWorker, UndoBatchWorker, DapCheckWorker,
+    LIBROSA_AVAILABLE
 )
 from tagqt.core.lyric import SYNCEDLYRICS_AVAILABLE
 from tagqt.core.snapshot import BatchSnapshot
@@ -418,6 +419,7 @@ class MainWindow(QMainWindow):
             {"name": "Rename files", "shortcut": "", "callback": self.rename_all_files},
             {"name": "Auto-tag (all)", "shortcut": "", "callback": self.autotag_all},
             {"name": "Re-encode FLAC", "shortcut": "", "callback": self.reencode_flac_selected},
+            {"name": "DAP: Check compatibility (Snowsky Echo Mini)", "shortcut": "", "callback": self.check_dap_all},
             {"name": "Romanize lyrics", "shortcut": "", "callback": self.romanize_all},
             {"name": "Resize covers", "shortcut": "", "callback": self.resize_all_covers},
             {"name": "Theme: Latte", "shortcut": "", "callback": lambda: self.set_theme_flavor("latte")},
@@ -698,6 +700,17 @@ class MainWindow(QMainWindow):
         reencode_all_action.triggered.connect(self.reencode_flac_all)
         file_actions_menu.addAction(reencode_all_action)
 
+        file_actions_menu.addSeparator()
+
+        dap_menu = file_actions_menu.addMenu("DAP Compatibility (Snowsky Echo Mini)")
+        check_dap_selected_action = QAction("Check compatibility (selected)", self)
+        check_dap_selected_action.triggered.connect(self.check_dap_selected)
+        dap_menu.addAction(check_dap_selected_action)
+
+        check_dap_all_action = QAction("Check compatibility (all visible)", self)
+        check_dap_all_action.triggered.connect(self.check_dap_all)
+        dap_menu.addAction(check_dap_all_action)
+
         tools_menu.addSeparator()
         find_dupes_action = QAction("Find Duplicates", self)
         find_dupes_action.triggered.connect(self.find_duplicates)
@@ -833,6 +846,11 @@ class MainWindow(QMainWindow):
         reencode_action.triggered.connect(self.reencode_flac_selected)
         reencode_action.setEnabled(has_selection)
         menu.addAction(reencode_action)
+        
+        check_dap_action = QAction("Check DAP compatibility", self)
+        check_dap_action.triggered.connect(self.check_dap_selected)
+        check_dap_action.setEnabled(has_selection)
+        menu.addAction(check_dap_action)
         
         menu.addSeparator()
         
@@ -1367,6 +1385,30 @@ class MainWindow(QMainWindow):
         self.progress_label.setText("Re-encoding FLAC… 0%")
         
         self._start_batch_worker(FlacReencodeWorker(flac_files))
+
+    def check_dap_selected(self):
+        files = self.get_selected_files()
+        if not files:
+            dialogs.show_warning(self, "No Selection", "Select the files you want to check for DAP compatibility.")
+            return
+        self._check_dap_files(files)
+
+    def check_dap_all(self):
+        files = self.get_all_files()
+        if not files:
+            dialogs.show_warning(self, "No Files", "Open a folder to load audio files first.")
+            return
+        self._check_dap_files(files)
+
+    def _check_dap_files(self, files):
+        if not self._prepare_batch("DAP Compatibility Status"):
+            return
+
+        self.progress_bar.setRange(0, len(files))
+        self._batch_op_label = "Checking DAP compatibility"
+        self.progress_label.setText("Checking DAP compatibility... 0%")
+
+        self._start_batch_worker(DapCheckWorker(files))
 
     def find_duplicates(self):
         files = self.file_list.all_files
