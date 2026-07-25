@@ -26,6 +26,8 @@ import os
 import sys
 import base64
 
+logger = logging.getLogger(__name__)
+
 class MainWindow(QMainWindow):
     AUDIO_EXTENSIONS = ('.mp3', '.flac', '.ogg', '.wav', '.m4a', '.aac', '.wma', '.opus')
 
@@ -51,6 +53,7 @@ class MainWindow(QMainWindow):
         self.thread = None
         self.worker = None
         self._undo_snapshot = None
+        self._play_queue_cache = []  # cached play queue for performance
 
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
@@ -76,7 +79,10 @@ class MainWindow(QMainWindow):
         renderer = QSvgRenderer(logo_path)
         svg_size = renderer.defaultSize()
         target_h = 32
-        target_w = int(svg_size.width() * target_h / svg_size.height())
+        if svg_size.height() > 0:
+            target_w = int(svg_size.width() * target_h / svg_size.height())
+        else:
+            target_w = target_h
         logo_pixmap = QPixmap(target_w, target_h)
         logo_pixmap.fill(Qt.transparent)
         painter = QPainter(logo_pixmap)
@@ -485,10 +491,19 @@ class MainWindow(QMainWindow):
                 except RuntimeError:
                     pass
         except Exception:
+            logger.warning("Error during thread cleanup on close", exc_info=True)
+        try:
+            if hasattr(self, '_bpm_worker') and self._bpm_worker.isRunning():
+                self._bpm_worker.quit()
+                self._bpm_worker.wait(2000)
+        except (RuntimeError, AttributeError):
             pass
-        if hasattr(self, '_bpm_worker') and self._bpm_worker.isRunning():
-            self._bpm_worker.quit()
-            self._bpm_worker.wait(2000)
+        try:
+            if hasattr(self, '_dup_thread') and self._dup_thread and self._dup_thread.isRunning():
+                self._dup_thread.quit()
+                self._dup_thread.wait(2000)
+        except (RuntimeError, AttributeError):
+            pass
         event.accept()
         super().closeEvent(event)
 
@@ -531,6 +546,17 @@ class MainWindow(QMainWindow):
         return True
 
     def _start_batch_worker(self, worker, result_handler=None, connect_log=False):
+        # Guard: wait for any still-running thread before starting a new one
+        if self.thread is not None:
+            try:
+                if self.thread.isRunning():
+                    self.thread.quit()
+                    self.thread.wait(3000)
+            except RuntimeError:
+                pass
+            self.thread = None
+            self.worker = None
+
         self.thread = QThread()
         self.worker = worker
         self.worker.moveToThread(self.thread)
@@ -1065,9 +1091,16 @@ class MainWindow(QMainWindow):
             self.worker.stop()
         
         self.batch_cancel_btn.setEnabled(False)
-        self.batch_cancel_btn.setText("Stopping…")
+        self.batch_cancel_btn.setText("Stopping...")
         
-        if hasattr(self, 'thread') and self.thread and self.thread.isRunning():
+        thread_running = False
+        if hasattr(self, 'thread') and self.thread:
+            try:
+                thread_running = self.thread.isRunning()
+            except RuntimeError:
+                thread_running = False
+        
+        if thread_running:
             self.thread.finished.connect(self._on_cancel_complete)
         else:
             self._on_cancel_complete()
@@ -1342,6 +1375,16 @@ class MainWindow(QMainWindow):
             return
 
         data = [(path, meta.title or '', meta.artist or '') for path, meta in files]
+
+        # Guard: wait for any previous duplicate scan thread
+        if hasattr(self, '_dup_thread') and self._dup_thread:
+            try:
+                if self._dup_thread.isRunning():
+                    self._dup_thread.quit()
+                    self._dup_thread.wait(3000)
+            except RuntimeError:
+                pass
+
         self._dup_thread = QThread()
         self._dup_worker = DuplicateScanWorker(data)
         self._dup_worker.moveToThread(self._dup_thread)
@@ -1350,7 +1393,8 @@ class MainWindow(QMainWindow):
         self._dup_worker.finished.connect(self._dup_thread.quit)
         self._dup_worker.finished.connect(self._dup_worker.deleteLater)
         self._dup_thread.finished.connect(self._dup_thread.deleteLater)
-        self.show_toast("Scanning for duplicates…", duration=2000)
+        self._dup_thread.finished.connect(lambda: setattr(self, '_dup_thread', None))
+        self.show_toast("Scanning for duplicates...", duration=2000)
         self._dup_thread.start()
 
     def _on_duplicates_found(self, dupes):
@@ -1672,6 +1716,17 @@ class MainWindow(QMainWindow):
         self.progress_label.setText("Scanning folder…")
         self.progress_bar.setRange(0, 0) # Indeterminate
         
+        # Guard: wait for any still-running thread before starting a new one
+        if self.thread is not None:
+            try:
+                if self.thread.isRunning():
+                    self.thread.quit()
+                    self.thread.wait(3000)
+            except RuntimeError:
+                pass
+            self.thread = None
+            self.worker = None
+
         # Create Thread and Worker
         self.thread = QThread()
         self.worker = FolderLoaderWorker(folder_path)
@@ -1985,7 +2040,10 @@ class MainWindow(QMainWindow):
         renderer = QSvgRenderer(logo_path)
         svg_size = renderer.defaultSize()
         target_h = 48
-        target_w = int(svg_size.width() * target_h / svg_size.height())
+        if svg_size.height() > 0:
+            target_w = int(svg_size.width() * target_h / svg_size.height())
+        else:
+            target_w = target_h
         logo_pixmap = QPixmap(target_w, target_h)
         logo_pixmap.fill(Qt.transparent)
         painter = QPainter(logo_pixmap)
@@ -2357,7 +2415,8 @@ auto-tag from MusicBrainz, batch rename files — all in one place.</p>
                 dialogs.show_error(self, "Couldn't Load Lyrics", f"Something went wrong reading that file. {e}")
 
     def _build_play_queue(self) -> list[str]:
-        """Return filepaths in the exact visual order of the QTreeWidget."""
+        """Return filepaths in the exact visual order of the QTreeWidget.
+        Results are cached and invalidated when the file list changes."""
         paths = []
         iterator = QTreeWidgetItemIterator(self.file_list)
         while iterator.value():
@@ -2367,6 +2426,7 @@ auto-tag from MusicBrainz, batch rename files — all in one place.</p>
                 if filepath and isinstance(filepath, str):
                     paths.append(filepath)
             iterator += 1
+        self._play_queue_cache = paths
         return paths
 
     def _on_tree_double_click(self, item, column):
@@ -2411,12 +2471,12 @@ auto-tag from MusicBrainz, batch rename files — all in one place.</p>
         else:
             self.btn_play.setText('⏵')
             self.btn_play.setToolTip('Play')
-        if state == 'stopped' and self.player.current_index >= len(self._build_play_queue()) - 1:
+        if state == 'stopped' and self.player.current_index >= len(self._play_queue_cache) - 1:
             self.now_playing_label.setText('')
             self._clear_lyric_highlights()
 
     def _on_player_track_changed(self, index):
-        queue = self._build_play_queue()
+        queue = self._play_queue_cache
         if not (0 <= index < len(queue)):
             return
 
@@ -2427,13 +2487,16 @@ auto-tag from MusicBrainz, batch rename files — all in one place.</p>
         self.now_playing_label.setToolTip(basename)
 
         # Remove bold from previous item
-        if self._now_playing_item:
+        if self._now_playing_item is not None:
             try:
+                # Verify the C++ object is still alive before accessing it
+                _ = self._now_playing_item.columnCount()
                 font = self._now_playing_item.font(0)
                 font.setBold(False)
                 for col in range(self._now_playing_item.columnCount()):
                     self._now_playing_item.setFont(col, font)
             except RuntimeError:
+                # Underlying C++ object was already deleted (e.g. tree cleared)
                 pass
             self._now_playing_item = None
 
@@ -2452,7 +2515,7 @@ auto-tag from MusicBrainz, batch rename files — all in one place.</p>
             raw_lrc = meta.lyrics or ''
             self.player.set_lyrics(raw_lrc)
         except Exception as e:
-            print(f"[TagQt] could not load lyrics for track: {e}")
+            logger.warning("Could not load lyrics for track: %s", e)
             self.player.set_lyrics('')
 
         # If user is editing, leave the list and editor alone

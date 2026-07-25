@@ -36,10 +36,7 @@ def parse_lrc(text: str) -> list[tuple[int, str, int]]:
             seconds = int(match.group(2))
             frac = match.group(3)
             # Normalize: if 2 digits treat as centiseconds, if 3 as milliseconds
-            if len(frac) <= 2:
-                ms_frac = int(frac) * 10
-            else:
-                ms_frac = int(frac)
+            ms_frac = int(frac.ljust(3, '0'))
             ms = (minutes * 60 + seconds) * 1000 + ms_frac
             text_part = match.group(4).strip()
             result.append((ms, text_part, line_num))
@@ -66,6 +63,7 @@ class PlayerController(QObject):
         # Lyrics sync state
         self._lrc_lines: list[tuple[int, str, int]] = []
         self._last_lyric_idx: int = -1
+        self._skip_count: int = 0
 
         self._player.playbackStateChanged.connect(self._on_state_changed)
         self._player.mediaStatusChanged.connect(self._on_media_status)
@@ -91,6 +89,7 @@ class PlayerController(QObject):
             self._position_timer.stop()
             self.state_changed.emit('paused')
         else:
+            self._skip_count = 0
             self._player.play()
             self._position_timer.start()
             self.state_changed.emit('playing')
@@ -185,8 +184,13 @@ class PlayerController(QObject):
 
     def _on_media_status(self, status):
         if status == QMediaPlayer.MediaStatus.EndOfMedia:
+            self._skip_count = 0
             self.next_track()
         elif status == QMediaPlayer.MediaStatus.InvalidMedia:
             path = self.current_path or "<unknown>"
             logger.warning("Unplayable file, skipping: %s", path)
+            self._skip_count += 1
+            if self._skip_count >= len(self._queue):
+                self.stop()
+                return
             self.next_track()
