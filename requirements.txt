@@ -1,8 +1,8 @@
-PySide6
-mutagen
-Pillow
-requests
-koroman
-musicbrainzngs
-syncedlyrics
-pytest
+PySide6>=6.5,<7
+mutagen>=1.47
+Pillow>=10.0
+requests>=2.31
+koroman>=0.2
+musicbrainzngs>=0.7
+syncedlyrics>=0.8
+pytest>=7.0
