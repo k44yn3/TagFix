@@ -7,6 +7,9 @@ import os
 import re
 import time
 import threading
+import logging
+
+logger = logging.getLogger(__name__)
 
 try:
     import librosa
@@ -63,7 +66,7 @@ class LyricsWorker(QObject):
     def run(self):
         try:
             start_time = time.time()
-            self.log.emit(f"[DEBUG] Starting batch lyrics fetch for {len(self.files)} files")
+            logger.debug(f"Starting batch lyrics fetch for {len(self.files)} files")
             
             for i, f in enumerate(self.files):
                 if self._stop_event.is_set():
@@ -121,10 +124,10 @@ class LyricsWorker(QObject):
                         else:
                             self.result.emit(f, "Missing", "No results found")
                 except Exception as e:
-                    self.log.emit(f"[DEBUG] Error fetching lyrics for {f}: {e}")
+                    logger.debug(f"Error fetching lyrics for {f}: {e}")
                     self.result.emit(f, "Error", str(e))
                     
-            self.log.emit(f"[DEBUG] Batch lyrics finished in {time.time() - start_time:.2f}s")
+            logger.debug(f"Batch lyrics finished in {time.time() - start_time:.2f}s")
             self.progress.emit(len(self.files), len(self.files))
         finally:
             self.finished.emit()

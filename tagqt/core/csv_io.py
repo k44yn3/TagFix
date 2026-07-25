@@ -2,6 +2,8 @@
 
 import csv
 import os
+import logging
+logger = logging.getLogger(__name__)
 
 
 def export_metadata_to_csv(files_data, filepath):

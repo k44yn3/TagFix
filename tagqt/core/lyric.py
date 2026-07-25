@@ -1,4 +1,6 @@
 import requests
+import logging
+logger = logging.getLogger(__name__)
 
 try:
     import syncedlyrics
@@ -35,7 +37,7 @@ class LyricsFetcher:
                 })
             return results
         except requests.exceptions.RequestException as e:
-            print(f"Error fetching lyrics: {e}")
+            logger.error(f"Error fetching lyrics: {e}")
             return []
 
     def search_with_providers(self, artist: str, title: str,
@@ -69,7 +71,7 @@ class LyricsFetcher:
                 elif key == "lrclib":
                     all_results.extend(self.search_lyrics(artist, title, album))
             except Exception as e:
-                print(f"Lyrics provider {key!r} failed: {e}")
+                logger.error(f"Lyrics provider {key!r} failed: {e}")
         return all_results
 
     def fetch_with_providers(self, artist: str, title: str,
@@ -114,7 +116,7 @@ class LyricsFetcher:
                             return text, key
 
             except Exception as e:
-                print(f"Lyrics provider {key!r} failed: {e}")
+                logger.error(f"Lyrics provider {key!r} failed: {e}")
                 continue
 
         return None, ""

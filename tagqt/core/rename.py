@@ -1,5 +1,7 @@
 import re
 import os
+import logging
+logger = logging.getLogger(__name__)
 
 class Renamer:
     @staticmethod
@@ -71,6 +73,6 @@ class Renamer:
             if match:
                 return match.groupdict()
         except Exception as e:
-            print(f"Error parsing filename: {e}")
+            logger.error(f"Error parsing filename: {e}")
             
         return None

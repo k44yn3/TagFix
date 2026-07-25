@@ -5,6 +5,8 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from PIL import Image
 from io import BytesIO
+import logging
+logger = logging.getLogger(__name__)
 
 class CoverArtManager:
     """Manages cover art searching and downloading from iTunes and MusicBrainz."""
@@ -26,7 +28,7 @@ class CoverArtManager:
                 if attempt < max_retries - 1:
                     time.sleep(2 ** attempt)
                     continue
-                print(f"Network error after {max_retries} retries: {e}")
+                logger.error(f"Network error after {max_retries} retries: {e}")
                 return None
         return None
 
@@ -49,7 +51,7 @@ class CoverArtManager:
             img.save(output, format="JPEG", quality=90)
             return output.getvalue()
         except Exception as e:
-            print(f"Error processing cover: {e}")
+            logger.error(f"Error processing cover: {e}")
             return None
 
     def search_cover_musicbrainz(self, artist, album):
@@ -107,7 +109,7 @@ class CoverArtManager:
                         "size": "1000x1000"
                     })
         except Exception as e:
-            print(f"Error searching iTunes candidates: {e}")
+            logger.error(f"Error searching iTunes candidates: {e}")
             
         # MusicBrainz (Simplified for candidates, usually just one front image per release group)
         try:

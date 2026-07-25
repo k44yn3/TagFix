@@ -3,6 +3,8 @@ import re
 import unicodedata
 import time
 import requests
+import logging
+logger = logging.getLogger(__name__)
 
 musicbrainzngs.set_useragent("TagQt", "1.0", "https://github.com/example/tagqt")
 musicbrainzngs.set_rate_limit(limit_or_interval=1.0, new_requests=1)
@@ -43,10 +45,10 @@ class MusicBrainzClient:
                 if attempt < max_retries - 1:
                     time.sleep(2 ** attempt)
                     continue
-                print(f"MusicBrainz network error after {max_retries} retries: {e}")
+                logger.error(f"MusicBrainz network error after {max_retries} retries: {e}")
                 return None
             except musicbrainzngs.MusicBrainzError as e:
-                print(f"MusicBrainz API error: {e}")
+                logger.error(f"MusicBrainz API error: {e}")
                 return None
         return None
     

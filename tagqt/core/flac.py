@@ -6,6 +6,8 @@ import tempfile
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QMetaObject, Qt, Q_ARG
 from tagqt.core.tags import MetadataHandler
+import logging
+logger = logging.getLogger(__name__)
 
 def _get_all_encoders() -> list[tuple[str, str]]:
     """
@@ -107,7 +109,7 @@ class FlacEncoder:
             cover_data = original_meta.get_cover()
 
         except Exception as e:
-            print(f"Warning: Could not read original metadata: {e}")
+            logger.warning(f"Warning: Could not read original metadata: {e}")
 
         temp_fd, temp_path = tempfile.mkstemp(suffix='.flac')
         os.close(temp_fd)
@@ -142,7 +144,7 @@ class FlacEncoder:
                 if cmd is None:
                     continue
 
-                print(f"[TagQt] Trying encoder: {binary} (mode={mode})")
+                logger.info(f"Trying encoder: {binary} (mode={mode})")
 
                 result = subprocess.run(
                     cmd,
@@ -163,20 +165,20 @@ class FlacEncoder:
                     new_meta.save()
 
                 except Exception as e:
-                    print(f"Warning: Could not restore metadata: {e}")
+                    logger.warning(f"Warning: Could not restore metadata: {e}")
 
                 shutil.move(temp_path, filepath)
                 return True, None
 
             except subprocess.CalledProcessError as e:
                 error_msg = e.stderr.decode() if e.stderr else str(e)
-                print(f"[TagQt] Encoder {binary} failed: {error_msg}")
+                logger.error(f"Encoder {binary} failed: {error_msg}")
                 last_error = f"Encoding failed: {error_msg}"
                 # Continue to next encoder
                 continue
 
             except Exception as e:
-                print(f"[TagQt] Encoder {binary} error: {e}")
+                logger.error(f"Encoder {binary} error: {e}")
                 last_error = str(e)
                 # Continue to next encoder
                 continue

@@ -9,6 +9,8 @@ import os
 import base64
 from PIL import Image
 import io
+import logging
+logger = logging.getLogger(__name__)
 
 def _get_comment(id3, _):
     frames = id3.getall('COMM')
@@ -55,7 +57,7 @@ class MetadataHandler:
                     self.audio = mutagen.File(self.filepath)
                     self.audio.add_tags()
         except Exception as e:
-            print(f"Error loading file {self.filepath}: {e}")
+            logger.error(f"Error loading file {self.filepath}: {e}")
 
     def get_tag(self, tag):
         if self.audio and tag in self.audio:
@@ -71,7 +73,7 @@ class MetadataHandler:
                 else:
                     self.audio[tag] = [str(value)]
             except Exception as e:
-                print(f"[TagQt] Warning: could not set tag '{tag}': {e}")
+                logger.warning(f"Warning: could not set tag '{tag}': {e}")
 
     def save(self):
         try:
@@ -81,7 +83,7 @@ class MetadataHandler:
                     self.save_lyrics_file()
                     self._lyrics_changed = False
         except Exception as e:
-            print(f"[TagQt] Warning: save failed: {e}")
+            logger.warning(f"Warning: save failed: {e}")
 
     def save_lyrics_file(self):
         """Saves lyrics to a .lrc file with the same name as the audio file."""
@@ -95,7 +97,7 @@ class MetadataHandler:
             with open(lrc_path, 'w', encoding='utf-8') as f:
                 f.write(self.lyrics)
         except Exception as e:
-            print(f"Error saving lyrics file: {e}")
+            logger.error(f"Error saving lyrics file: {e}")
 
     def save_cover_file(self, data=None, overwrite=True):
         """
@@ -119,7 +121,7 @@ class MetadataHandler:
             with open(cover_path, 'wb') as f:
                 f.write(data)
         except Exception as e:
-            print(f"Error saving cover file: {e}")
+            logger.error(f"Error saving cover file: {e}")
 
     @property
     def title(self):
@@ -286,7 +288,7 @@ class MetadataHandler:
                     return self.audio['\xa9lyr'][0]
                     
         except Exception as e:
-            print(f"Error getting lyrics: {e}")
+            logger.error(f"Error getting lyrics: {e}")
         return ""
 
     @lyrics.setter
@@ -329,7 +331,7 @@ class MetadataHandler:
                     del self.audio['\xa9lyr']
                 
         except Exception as e:
-            print(f"Error setting lyrics: {e}")
+            logger.error(f"Error setting lyrics: {e}")
 
     @property
     def bpm(self):
@@ -438,7 +440,7 @@ class MetadataHandler:
                 return bytes(covers[0]) if covers else None
 
         except Exception as e:
-            print(f"[TagQt] Warning: could not read cover art: {e}")
+            logger.warning(f"Warning: could not read cover art: {e}")
             return None
 
     def set_cover(self, data, max_size=None):
@@ -487,4 +489,4 @@ class MetadataHandler:
                 ]
 
         except Exception as e:
-            print(f"[TagQt] Warning: could not save cover art: {e}")
+            logger.warning(f"Warning: could not save cover art: {e}")
