@@ -2111,7 +2111,7 @@ auto-tag from MusicBrainz, batch rename files — all in one place.</p>
 <p>Supports MP3, FLAC, OGG, M4A, and WAV.</p>
 
 <p style="margin-top: 20px;">
-<a href="https://github.com/selr1/tagqt" style="color: {Theme.ACCENT};">github.com/selr1/tagqt</a>
+<a href="https://github.com/near-link/tagqt" style="color: {Theme.ACCENT};">github.com/near-link/tagqt</a>
 </p>
 """
         from tagqt.ui.help import HelpDialog

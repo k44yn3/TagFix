@@ -3,4 +3,4 @@
 # During development it returns 'dev'.
 # In packaged builds it is overwritten by CI with the real version.
 
-__version__ = "dev"
+__version__ = "1.4.0"

@@ -8,9 +8,9 @@
 
 <p align="center">
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square&labelColor=1e1e2e&color=f38ba8" alt="License: MIT"/></a>
-  <a href="https://github.com/selr1/tagqt"><img src="https://img.shields.io/badge/FOSS-100%25-success?style=flat-square&labelColor=1e1e2e&color=a6e3a1" alt="FOSS"/></a>
-  <a href="https://github.com/selr1/tagqt"><img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-green?style=flat-square&labelColor=1e1e2e&color=cba6f7" alt="Platform"/></a>
-  <a href="https://github.com/selr1/tagqt"><img src="https://img.shields.io/badge/Python-3.10%2B-blue?style=flat-square&labelColor=1e1e2e&color=89b4fa" alt="Python 3.10+"/></a>
+  <a href="https://github.com/near-link/tagqt"><img src="https://img.shields.io/badge/FOSS-100%25-success?style=flat-square&labelColor=1e1e2e&color=a6e3a1" alt="FOSS"/></a>
+  <a href="https://github.com/near-link/tagqt"><img src="https://img.shields.io/badge/Platform-Windows%20%7C%20Linux-green?style=flat-square&labelColor=1e1e2e&color=cba6f7" alt="Platform"/></a>
+  <a href="https://github.com/near-link/tagqt"><img src="https://img.shields.io/badge/Python-3.10%2B-blue?style=flat-square&labelColor=1e1e2e&color=89b4fa" alt="Python 3.10+"/></a>
 </p>
 
 ## Screenshot
@@ -31,7 +31,7 @@ TagQt can auto-tag files from MusicBrainz, filling in artist, album, year, track
 
 A built-in music player lets you play through your tracks in display order. When a track has LRC timestamps in its lyrics, the lyrics box highlights the current line in sync with playback.
 
-Files can be batch renamed using tag patterns like `%artist% - %title%`. FLAC files can be re-encoded to 24 bit 48kHz using ffmpeg. Korean and CJK text in lyrics and tags can be romanized automatically. Metadata can be imported and exported as CSV, and filename or tag case can be converted between title case, upper, and lower.
+Files can be batch renamed using tag patterns like `%artist% - %title%`. FLAC files can be re-encoded with hardware DAP block sizes and baseline JPEG artwork optimization. Korean and CJK text in lyrics and tags can be romanized automatically. Metadata can be imported and exported as CSV, and filename or tag case can be converted between title case, upper, and lower.
 
 You can drag and drop files or folders directly onto the window to load them.
 
@@ -51,14 +51,14 @@ You can drag and drop files or folders directly onto the window to load them.
 
 ### From a Release
 
-Download the latest build from [Releases](https://github.com/selr1/tagqt/releases). On Windows, run the installer `.exe`. On Linux, download the AppImage, make it executable with `chmod +x`, and run it.
+Download the latest build from [Releases](https://github.com/near-link/tagqt/releases). On Windows, run the installer `.exe`. On Linux, download the AppImage, make it executable with `chmod +x`, and run it.
 
 ### From Source
 
 Requires Python 3.10 or later.
 
 ```bash
-git clone https://github.com/selr1/tagqt.git
+git clone https://github.com/near-link/tagqt.git
 cd tagqt
 pip install -r requirements.txt
 python main.py

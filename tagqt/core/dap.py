@@ -170,13 +170,13 @@ def check_dap_compatibility(filepath: str) -> dict:
     # Audio metadata inspection
     try:
         meta = MetadataHandler(filepath)
-        sr = meta.sample_rate
+        sr_hz = getattr(meta, 'sample_rate_hz', 0) or (meta.sample_rate * 1000)
         bd = meta.bit_depth
-        details['sample_rate'] = sr
+        details['sample_rate'] = sr_hz
         details['bit_depth'] = bd
 
-        if sr and sr > 192000:
-            reasons.append(f"Sample rate {sr} Hz exceeds DAP limit of 192,000 Hz")
+        if sr_hz and sr_hz > 192000:
+            reasons.append(f"Sample rate {sr_hz} Hz exceeds DAP limit of 192,000 Hz")
 
         if bd and bd > 24:
             reasons.append(f"Bit depth {bd}-bit exceeds DAP limit of 24-bit")

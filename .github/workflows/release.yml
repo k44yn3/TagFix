@@ -436,32 +436,32 @@ jobs:
           cp -r dist/TagQt/* TagQt.AppDir/usr/bin/
 
           # Root icon (required by AppImage spec — must match Icon= in .desktop)
-          cp assets/icons/logo_256.png TagQt.AppDir/io.github.selr1.tagqt.png
+          cp assets/icons/logo_256.png TagQt.AppDir/io.github.near-link.tagqt.png
           cp assets/icons/logo_256.png TagQt.AppDir/TagQt.png
 
           # Icon hierarchy for system integration
           for size in 16 32 48 64 128 256 512; do
             dir="TagQt.AppDir/usr/share/icons/hicolor/${size}x${size}/apps"
             mkdir -p "$dir"
-            cp "assets/icons/logo_${size}.png" "$dir/io.github.selr1.tagqt.png"
+            cp "assets/icons/logo_${size}.png" "$dir/io.github.near-link.tagqt.png"
           done
           mkdir -p TagQt.AppDir/usr/share/icons/hicolor/scalable/apps
-          cp assets/icons/logo_icon.svg TagQt.AppDir/usr/share/icons/hicolor/scalable/apps/io.github.selr1.tagqt.svg
+          cp assets/icons/logo_icon.svg TagQt.AppDir/usr/share/icons/hicolor/scalable/apps/io.github.near-link.tagqt.svg
 
           # Create .desktop file
-          cat > TagQt.AppDir/io.github.selr1.tagqt.desktop << EOF
+          cat > TagQt.AppDir/io.github.near-link.tagqt.desktop << EOF
           [Desktop Entry]
           Type=Application
           Name=TagQt
           GenericName=Music Tag Editor
           Exec=TagQt
-          Icon=io.github.selr1.tagqt
-          StartupWMClass=io.github.selr1.tagqt
+          Icon=io.github.near-link.tagqt
+          StartupWMClass=io.github.near-link.tagqt
           Categories=Audio;AudioVideo;Music;
           Comment=A music metadata editor built with Python and Qt
           Keywords=music;tag;metadata;mp3;flac;audio;
           EOF
-          sed -i 's/^          //' TagQt.AppDir/io.github.selr1.tagqt.desktop
+          sed -i 's/^          //' TagQt.AppDir/io.github.near-link.tagqt.desktop
 
       - name: Create AppRun
         run: |
@@ -493,7 +493,7 @@ jobs:
           cat > TagQt.AppDir/usr/share/metainfo/tagqt.appdata.xml << EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <component type="desktop-application">
-            <id>io.github.selr1.tagqt</id>
+            <id>io.github.near-link.tagqt</id>
             <name>TagQt</name>
             <summary>A music metadata editor built with Python and Qt</summary>
             <metadata_license>MIT</metadata_license>
@@ -509,8 +509,8 @@ jobs:
               <release version="${{ steps.version.outputs.VERSION }}"
                        date="$(date -u +%Y-%m-%d)"/>
             </releases>
-            <url type="homepage">https://github.com/selr1/tagqt</url>
-            <url type="bugtracker">https://github.com/selr1/tagqt/issues</url>
+            <url type="homepage">https://github.com/near-link/tagqt</url>
+            <url type="bugtracker">https://github.com/near-link/tagqt/issues</url>
           </component>
           EOF
           sed -i 's/^          //' TagQt.AppDir/usr/share/metainfo/tagqt.appdata.xml

@@ -409,6 +409,34 @@ class MetadataHandler:
         return 0
 
     @property
+    def sample_rate_hz(self):
+        try:
+            if self.audio and hasattr(self.audio, 'info') and hasattr(self.audio.info, 'sample_rate'):
+                return int(self.audio.info.sample_rate)
+        except Exception:
+            pass
+        return 0
+
+    @property
+    def bit_depth(self):
+        try:
+            if self.audio and hasattr(self.audio, 'info'):
+                info = self.audio.info
+                if hasattr(info, 'bits_per_sample') and info.bits_per_sample:
+                    return int(info.bits_per_sample)
+                if hasattr(info, 'sample_fmt') and info.sample_fmt:
+                    fmt = str(info.sample_fmt).lower()
+                    if '16' in fmt:
+                        return 16
+                    if '24' in fmt:
+                        return 24
+                    if '32' in fmt or 'flt' in fmt:
+                        return 32
+        except Exception:
+            pass
+        return 0
+
+    @property
     def filesize(self):
         try:
             size_bytes = os.path.getsize(self.filepath)

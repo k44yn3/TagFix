@@ -19,7 +19,7 @@ def get_asset(relative_path: str) -> str:
 
 
 def main():
-    QApplication.setDesktopFileName("io.github.selr1.tagqt")
+    QApplication.setDesktopFileName("io.github.near-link.tagqt")
     app = QApplication(sys.argv)
 
     # Load bundled JetBrains Mono font
